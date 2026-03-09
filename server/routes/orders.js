@@ -70,6 +70,29 @@ router.get('/all', protect, adminOnly, async (req, res) => {
   }
 });
 
+// GET /api/orders/my-assignments - for agents
+router.get('/my-assignments', protect, async (req, res) => {
+  try {
+    // First try userId match
+    let agent = await Agent.findOne({ userId: req.user._id });
+    
+    // Fallback: match by name if userId not set
+    if (!agent) {
+      agent = await Agent.findOne({ name: req.user.name });
+    }
+
+    if (!agent) {
+      return res.status(404).json({ message: 'Agent not found' });
+    }
+
+    const orders = await Order.find({ agentId: agent._id })
+      .populate('customerId', 'name email');
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 /**
  * GET /api/orders/:id
  * Get single order by ID
@@ -97,6 +120,7 @@ router.get('/:id', protect, async (req, res) => {
     res.status(500).json({ message: error.message || 'Server error' });
   }
 });
+
 
 /**
  * PATCH /api/orders/:id/status

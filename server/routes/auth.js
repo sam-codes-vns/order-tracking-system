@@ -1,6 +1,8 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Agent = require('../models/Agent'); // ✅ add this import at top
+
 const { protect } = require('../middleware/authMiddleware');
 
 const router = express.Router();
@@ -11,7 +13,7 @@ const router = express.Router();
  */
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, phone } = req.body;
     
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Please provide name, email and password' });
@@ -28,6 +30,14 @@ router.post('/register', async (req, res) => {
       password,
       role: role || 'customer'
     });
+
+    if (user.role === 'agent') {
+      await Agent.create({
+        name: user.name,
+        phone: phone || 'N/A', // ✅ add phone field to register form too
+        userId: user._id
+      });
+    }
 
     const token = jwt.sign(
       { id: user._id },

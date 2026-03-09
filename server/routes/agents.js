@@ -1,21 +1,21 @@
 const express = require('express');
 const Agent = require('../models/Agent');
 const Order = require('../models/Order');
+const User = require('../models/User'); // ✅ add this import at top
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
 // All agent routes require admin
-router.use(protect, adminOnly);
+//router.use(protect, adminOnly);
 
 /**
  * GET /api/agents
  * Get all agents
  */
-router.get('/', async (req, res) => {
+router.get('/', protect, adminOnly, async (req, res) => {
   try {
-    const agents = await Agent.find()
-      .populate('assignedOrders');
+    const agents = await Agent.find().populate('assignedOrders');
 
     res.json(agents);
   } catch (error) {
@@ -27,7 +27,7 @@ router.get('/', async (req, res) => {
  * PATCH /api/agents/:id/assign
  * Assign agent to an order
  */
-router.patch('/:id/assign', async (req, res) => {
+router.patch('/:id/assign', protect, adminOnly, async (req, res) => {
   try {
     const { orderId } = req.body;
 
@@ -66,6 +66,11 @@ router.patch('/:id/assign', async (req, res) => {
       .populate('customerId', 'name email')
       .populate('agentId', 'name phone');
 
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`agent_${agent.userId}`).emit('orderAssigned', { orderId });
+    }
+
     res.json(updatedOrder);
   } catch (error) {
     if (error.kind === 'ObjectId') {
@@ -75,4 +80,29 @@ router.patch('/:id/assign', async (req, res) => {
   }
 });
 
+router.post('/sync', protect, adminOnly, async (req, res) => {
+  try {
+    const agentUsers = await User.find({ role: 'agent' });
+    console.log('Found agent users:', agentUsers.length); // ✅ check terminal
+
+    let created = 0;
+    for (const user of agentUsers) {
+      const exists = await Agent.findOne({ $or: [{ userId: user._id }, { name: user.name }]
+      });
+      if (!exists) {
+        await Agent.create({
+          name: user.name,
+          phone: user.phone || 'N/A',
+          userId: user._id
+        });
+        created++;
+        console.log('Created agent:', user.name);
+
+      }
+    }
+    res.json({ message: `Synced ${created} agents`, total: agentUsers.length });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 module.exports = router;

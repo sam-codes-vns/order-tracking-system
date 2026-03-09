@@ -33,6 +33,13 @@ const Navbar = () => {
                   Admin
                 </Link>
               )}
+              {/* ✅ Add this */}
+              {user?.role === 'agent' && (
+                <Link to="/agent" className="text-white hover:bg-primary-light px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                  My Assignments
+                </Link>
+              )}
+
             </div>
           </div>
           <div className="flex items-center space-x-4">

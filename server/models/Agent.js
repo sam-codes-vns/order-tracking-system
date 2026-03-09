@@ -8,8 +8,9 @@ const agentSchema = new mongoose.Schema({
   },
   phone: {
     type: String,
-    required: [true, 'Phone number is required'],
-    trim: true
+    required: false,
+    default: 'N/A', 
+    // trim: true
   },
   assignedOrders: [{
     type: mongoose.Schema.Types.ObjectId,
@@ -18,6 +19,10 @@ const agentSchema = new mongoose.Schema({
   isAvailable: {
     type: Boolean,
     default: true
+  },
+  userId: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'User'
   }
 }, { timestamps: true });
 

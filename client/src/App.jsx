@@ -1,12 +1,13 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import CustomerDashboard from './pages/CustomerDashboard';
-import OrderTracking from './pages/OrderTracking';
-import AdminDashboard from './pages/AdminDashboard';
 import { OrderProvider } from './context/OrderContext';
+import AdminDashboard from './pages/AdminDashboard';
+import AgentDashboard from './pages/AgentDashboard';
+import CustomerDashboard from './pages/CustomerDashboard';
+import Login from './pages/Login';
+import OrderTracking from './pages/OrderTracking';
+import Register from './pages/Register';
 
 function App() {
   return (
@@ -47,6 +48,15 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="/agent" element={
+          <ProtectedRoute allowedRoles={['agent']}>
+            <Navbar />
+            <OrderProvider>
+              <AgentDashboard />
+
+            </OrderProvider>
+          </ProtectedRoute>
+        } />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
