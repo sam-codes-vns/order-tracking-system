@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -28,9 +28,15 @@ const Login = () => {
     if (!validate()) return;
     setLoading(true);
     try {
-      await login(email, password);
+      const res = await login(email, password);
+      if (res.needsVerification) {
+        toast.error('Please verify your email before logging in');
+        navigate('/register', { state: { step: 2, userId: res.userId } });
+        return;
+      }
+
       toast.success('Logged in successfully');
-      navigate(from, { replace: true });
+      navigate('/');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Login failed');
     } finally {
