@@ -17,7 +17,15 @@ export default {
           DEFAULT: '#22c55e',
           dark: '#16a34a',
           light: '#4ade80'
+        },
+        brand: {
+          blue: '#5B5EFF',
+          purple: '#B84AF3',
+          green: '#00D084'
         }
+      },
+      backgroundImage: {
+        'brand-gradient': 'linear-gradient(135deg, #5B5EFF 0%, #B84AF3 100%)',
       },
       animation: {
         'pulse-slow': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',

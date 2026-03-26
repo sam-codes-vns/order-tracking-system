@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useDarkMode } from '../context/DarkModeContext';
 
 const BenefitsShowcase = () => {
   const benefits = [
@@ -61,7 +62,10 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const { login } = useAuth();
+  const { darkMode, toggleDarkMode } = useDarkMode();
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from?.pathname || '/dashboard';
 
   const validate = () => {
     const newErrors = {};
@@ -77,18 +81,18 @@ const Login = () => {
     if (!validate()) return;
     setLoading(true);
     try {
-      const res = await login(email, password);
+      const res = await login(email, password, role); // Include role in login
       if (res.needsVerification) {
         toast.error('Please verify your email before logging in');
         navigate('/register', { state: { step: 2, userId: res.userId } });
         return;
       }
-
       toast.success('Logged in successfully');
-      // Role-based redirect
-      if (res.role === 'agent') navigate('/agent');
-      else if (res.role === 'admin') navigate('/admin');
-      else navigate('/');
+      
+      // Role-based redirect with fallback
+      if (res.role === 'agent') navigate('/agent', { replace: true });
+      else if (res.role === 'admin') navigate('/admin', { replace: true });
+      else navigate('/', { replace: true });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Login failed');
     } finally {
@@ -98,29 +102,53 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex flex-col items-center justify-center px-4 py-12">
+      {/* Dark mode toggle */}
+      <button
+        onClick={toggleDarkMode}
+        className="fixed top-4 right-4 p-2 rounded-full bg-white dark:bg-gray-800 shadow-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+        aria-label="Toggle dark mode"
+      >
+        {darkMode ? (
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+          </svg>
+        ) : (
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+          </svg>
+        )}
+      </button>
+
       <div className="w-full max-w-md">
         {/* Logo / Brand */}
-        <div className="text-center mb-6">
-          <h1 className="text-3xl font-extrabold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Ship365
-          </h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Smart Logistics Platform</p>
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center gap-2 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              </svg>
+            </div>
+            <h1 className="text-3xl font-extrabold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Ship365
+            </h1>
+          </div>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">Smart Logistics Platform</p>
         </div>
 
         {/* Login Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-100 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-100 dark:border-gray-700 transition-colors">
           <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 text-center mb-1">Welcome Back</h2>
           <p className="text-gray-500 dark:text-gray-400 text-sm text-center mb-6">Sign in to your account to continue</p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email Address</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Email Address</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 ${
+                className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 transition-colors ${
                   errors.email ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                 }`}
                 placeholder="you@example.com"
@@ -130,12 +158,13 @@ const Login = () => {
 
             {/* Password */}
             <div>
-              <div className="flex justify-between items-center mb-1">
+              <div className="flex justify-between items-center mb-1.5">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
                 <button
                   type="button"
                   onClick={() => toast('Password reset coming soon! Contact support for help.', { icon: '🔑' })}
-                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                >
                   Forgot password?
                 </button>
               </div>
@@ -143,7 +172,7 @@ const Login = () => {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 ${
+                className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 transition-colors ${
                   errors.password ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                 }`}
                 placeholder="••••••••"
@@ -153,11 +182,11 @@ const Login = () => {
 
             {/* Login As */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Login As</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Login As</label>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 dark:text-gray-100"
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 dark:text-gray-100 transition-colors"
               >
                 <option value="customer">Customer</option>
                 <option value="agent">Agent</option>
@@ -170,7 +199,7 @@ const Login = () => {
               <input
                 id="rememberMe"
                 type="checkbox"
-                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
               />
               <label htmlFor="rememberMe" className="text-sm text-gray-600 dark:text-gray-400">
                 Remember me
@@ -189,7 +218,9 @@ const Login = () => {
                   Signing in...
                 </span>
               ) : (
-                'Sign In'
+                <span className="flex items-center justify-center gap-2">
+                  Login <span>→</span>
+                </span>
               )}
             </button>
           </form>
@@ -204,6 +235,12 @@ const Login = () => {
 
         {/* Benefits Showcase */}
         <BenefitsShowcase />
+
+        <p className="mt-6 text-center text-gray-500 dark:text-gray-400 text-sm">
+          <Link to="/" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+            ← Back to Home
+          </Link>
+        </p>
       </div>
     </div>
   );
