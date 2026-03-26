@@ -41,18 +41,28 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try{
       const res = await axios.post('/api/auth/login', { email, password });
-      const { token, ...userData } = res.data;
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(userData));
-      setUser(userData);
-      return userData;
+      // 2-step: server now always returns needsLoginOtp for valid credentials
+      return res.data;
     }catch (err){
-      if (err.response?.status ===403) {
+      if (err.response?.status === 403) {
         return err.response.data;
       }
       throw err;
     }
-    
+  };
+
+  const verifyLoginOtp = async (userId, otp, rememberMe = false) => {
+    const res = await axios.post('/api/auth/verify-login-otp', { userId, otp });
+    const { token, ...userData } = res.data;
+    if (rememberMe) {
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(userData));
+    } else {
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(userData));
+    }
+    setUser(userData);
+    return userData;
   };
 
   const register = async (name, email, password, role = 'customer', phone='') => {
@@ -100,6 +110,7 @@ const verifyEmail = async (userId, otp) => {
     logout,
     verifyPhone,
     verifyEmail,
+    verifyLoginOtp,
     isAuthenticated: !!user
   };
 

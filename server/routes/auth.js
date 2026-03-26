@@ -115,11 +115,36 @@ router.post('/login', async (req, res) => {
       });
     }
 
+    // 2-Step: send login OTP for additional verification
+    await sendEmailOtp(user._id, user.email);
+    return res.json({
+      message: 'OTP sent to your email for login verification',
+      userId: user._id,
+      email: user.email,
+      needsLoginOtp: true
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'Server error' });
+  }
+});
+
+// ─── Verify Login OTP ────────────────────────────────────────────────
+router.post('/verify-login-otp', async (req, res) => {
+  try {
+    const { userId, otp } = req.body;
+    if (!userId || !otp) return res.status(400).json({ message: 'userId and otp are required' });
+
+    await verifyOtp(userId, otp, 'email');
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.json({ _id: user._id, name: user.name, email: user.email, role: user.role, token });
 
   } catch (error) {
-    res.status(500).json({ message: error.message || 'Server error' });
+    res.status(400).json({ message: error.message });
   }
 });
 

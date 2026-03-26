@@ -3,6 +3,20 @@ import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
 import axios from '../api/axios';
 
+// GPS / Location Capture Icon component
+const LocationIcon = ({ active }) => (
+  <svg
+    className={`w-5 h-5 ${active ? 'text-white' : 'text-white'}`}
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    viewBox="0 0 24 24"
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+  </svg>
+);
+
 const AgentDashboard = () => {
   const [orders, setOrders] = useState([]);
   const [sharing, setSharing] = useState({});
@@ -20,27 +34,25 @@ const AgentDashboard = () => {
     };
     fetchOrders();
 
-    /// Inside useEffect, update socket setup:
     const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:5000';
     socketRef.current = io(serverUrl);
 
-    // ✅ Join agent's own room to receive assignment notifications
     const user = JSON.parse(localStorage.getItem('user'));
     socketRef.current.on('connect', () => {
-    socketRef.current.emit('joinAgentRoom', user?._id);
+      socketRef.current.emit('joinAgentRoom', user?._id);
     });
 
     socketRef.current.on('orderAssigned', () => {
-    fetchOrders(); // re-fetch assignments
-    toast.success('New order assigned to you!');
-  });
+      fetchOrders();
+      toast.success('New order assigned to you!');
+    });
 
     return () => socketRef.current?.disconnect();
   }, []);
 
   const startSharing = (orderId) => {
     if (!navigator.geolocation) {
-      toast.error('Geolocation not supported');
+      toast.error('Geolocation not supported on this device');
       return;
     }
 
@@ -55,7 +67,7 @@ const AgentDashboard = () => {
 
     watchIds.current[orderId] = watchId;
     setSharing((prev) => ({ ...prev, [orderId]: true }));
-    toast.success('Location sharing started');
+    toast.success('Live location sharing started 📍');
   };
 
   const stopSharing = (orderId) => {
@@ -66,45 +78,68 @@ const AgentDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold text-primary mb-6">
-          My Assignments
-        </h1>
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">My Assignments</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+            Manage deliveries and share live location with customers
+          </p>
+        </div>
+
         {orders.length === 0 ? (
-          <p className="text-gray-500 text-center py-12">No assignments yet</p>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-12 text-center">
+            <div className="text-5xl mb-4">📋</div>
+            <p className="text-gray-500 dark:text-gray-400">No assignments yet</p>
+          </div>
         ) : (
           <div className="space-y-4">
             {orders.map((order) => (
-              <div key={order._id} className="bg-white rounded-xl shadow p-6">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-mono font-medium">
-                      #{order._id?.slice(-8).toUpperCase()}
+              <div key={order._id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
+                <div className="flex justify-between items-start gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-mono font-medium text-gray-800 dark:text-white">
+                        #{order._id?.slice(-8).toUpperCase()}
+                      </p>
+                      <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                        {order.status}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                      <span className="font-medium">Customer:</span> {order.customerId?.name}
                     </p>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Customer: {order.customerId?.name}
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      <span className="font-medium">Address:</span> {order.deliveryAddress?.address || 'N/A'}
                     </p>
-                    <p className="text-sm text-gray-600">
-                      Address: {order.deliveryAddress?.address || 'N/A'}
-                    </p>
-                    <span className="inline-block mt-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                      {order.status}
-                    </span>
+                    {sharing[order._id] && (
+                      <div className="flex items-center gap-1.5 mt-2">
+                        <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                        <span className="text-xs text-green-600 dark:text-green-400 font-medium">Live location active</span>
+                      </div>
+                    )}
                   </div>
+
+                  {/* Live Location Capture Button with GPS Icon */}
                   <button
                     onClick={() =>
                       sharing[order._id]
                         ? stopSharing(order._id)
                         : startSharing(order._id)
                     }
-                    className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all ${
                       sharing[order._id]
-                        ? 'bg-red-500 hover:bg-red-600 text-white'
-                        : 'bg-green-500 hover:bg-green-600 text-white'
+                        ? 'bg-red-500 hover:bg-red-600 text-white shadow-md shadow-red-200 dark:shadow-red-900/30'
+                        : 'text-white shadow-md hover:opacity-90'
                     }`}
+                    style={!sharing[order._id] ? { background: 'linear-gradient(135deg, #5B5EFF 0%, #B84AF3 100%)' } : {}}
+                    title={sharing[order._id] ? 'Stop sharing location' : 'Start live location sharing'}
                   >
-                    {sharing[order._id] ? '🔴 Stop Sharing' : '📍 Share Location'}
+                    <LocationIcon active={sharing[order._id]} />
+                    <span className="hidden sm:inline">
+                      {sharing[order._id] ? 'Stop' : 'Share Location'}
+                    </span>
                   </button>
                 </div>
               </div>
@@ -116,4 +151,4 @@ const AgentDashboard = () => {
   );
 };
 
-export default AgentDashboard; // ✅ make sure this line exists
+export default AgentDashboard;
