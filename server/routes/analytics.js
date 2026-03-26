@@ -252,14 +252,28 @@ router.get('/revenue/monthly', async (req, res) => {
 });
 
 // ─── GET /api/analytics/agents/top ───────────────────────────────────
-// Top performing agents (by delivered orders)
+// Top performing agents (by delivered orders this month)
 router.get('/agents/top', async (req, res) => {
+  // Mock ratings assigned by rank position
+  const mockRatings = [4.9, 4.8, 4.7, 4.6, 4.5];
+
+  // Fallback mock data shown when no real delivery data exists
+  const mockAgents = [
+    { id: 'mock-1', name: 'John Davis',    completedOrders: 45, rating: 4.9, rank: 1 },
+    { id: 'mock-2', name: 'Sarah Wilson',  completedOrders: 42, rating: 4.8, rank: 2 },
+    { id: 'mock-3', name: 'Mike Brown',    completedOrders: 38, rating: 4.7, rank: 3 },
+    { id: 'mock-4', name: 'Emma Garcia',   completedOrders: 35, rating: 4.6, rank: 4 },
+  ];
+
   try {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
     const topAgents = await Order.aggregate([
-      { $match: { status: 'Delivered', agentId: { $ne: null } } },
-      { $group: { _id: '$agentId', deliveredCount: { $sum: 1 } } },
-      { $sort: { deliveredCount: -1 } },
-      { $limit: 5 },
+      { $match: { status: 'Delivered', agentId: { $ne: null }, updatedAt: { $gte: startOfMonth } } },
+      { $group: { _id: '$agentId', completedOrders: { $sum: 1 } } },
+      { $sort: { completedOrders: -1 } },
+      { $limit: 4 },
       {
         $lookup: {
           from: 'agents',
@@ -271,11 +285,15 @@ router.get('/agents/top', async (req, res) => {
       { $unwind: '$agent' }
     ]);
 
+    if (topAgents.length === 0) {
+      return res.json(mockAgents);
+    }
+
     const result = topAgents.map((a, index) => ({
       id: a._id,
       name: a.agent.name,
-      phone: a.agent.phone,
-      deliveredCount: a.deliveredCount,
+      completedOrders: a.completedOrders,
+      rating: mockRatings[index] ?? 4.5,
       rank: index + 1
     }));
 
@@ -286,23 +304,88 @@ router.get('/agents/top', async (req, res) => {
 });
 
 // ─── GET /api/analytics/activity/recent ──────────────────────────────
-// Recent order activities (last 10 status changes)
+// Recent system activities (activity-feed format with event type and icon colour)
 router.get('/activity/recent', async (req, res) => {
+  const now = new Date();
+
+  // Fallback mock activities shown when no real order data exists
+  const mockActivities = [
+    {
+      id: 'act-1',
+      type: 'delivered',
+      title: 'Order TRK987654321 delivered',
+      description: 'Package successfully delivered to customer',
+      timestamp: new Date(now - 2 * 60 * 1000).toISOString(),
+      iconColor: 'text-green-600 dark:text-green-400',
+    },
+    {
+      id: 'act-2',
+      type: 'created',
+      title: 'New order ORD-2026-006 created',
+      description: 'Customer placed a new shipment order',
+      timestamp: new Date(now - 15 * 60 * 1000).toISOString(),
+      iconColor: 'text-blue-600 dark:text-blue-400',
+    },
+    {
+      id: 'act-3',
+      type: 'registered',
+      title: 'New agent registered: Alex Martinez',
+      description: 'Agent account verified and activated',
+      timestamp: new Date(now - 60 * 60 * 1000).toISOString(),
+      iconColor: 'text-purple-600 dark:text-purple-400',
+    },
+    {
+      id: 'act-4',
+      type: 'delayed',
+      title: 'Order TRK123456789 delayed',
+      description: 'Delivery delayed due to weather conditions',
+      timestamp: new Date(now - 2 * 60 * 60 * 1000).toISOString(),
+      iconColor: 'text-yellow-600 dark:text-yellow-400',
+    },
+    {
+      id: 'act-5',
+      type: 'maintenance',
+      title: 'System maintenance scheduled',
+      description: 'Planned downtime on Sunday 02:00–04:00 UTC',
+      timestamp: new Date(now - 3 * 60 * 60 * 1000).toISOString(),
+      iconColor: 'text-red-600 dark:text-red-400',
+    },
+  ];
+
+  const typeMap = {
+    Delivered: { type: 'delivered', iconColor: 'text-green-600 dark:text-green-400' },
+    Shipped: { type: 'created', iconColor: 'text-blue-600 dark:text-blue-400' },
+    'Out for Delivery': { type: 'created', iconColor: 'text-blue-600 dark:text-blue-400' },
+    Placed: { type: 'created', iconColor: 'text-blue-600 dark:text-blue-400' },
+    Packed: { type: 'created', iconColor: 'text-blue-600 dark:text-blue-400' },
+  };
+
   try {
     const recentOrders = await Order.find()
       .sort({ updatedAt: -1 })
-      .limit(10)
-      .populate('customerId', 'name email')
-      .select('_id status totalAmount updatedAt customerId');
+      .limit(5)
+      .populate('customerId', 'name')
+      .select('_id status updatedAt customerId');
 
-    const result = recentOrders.map((o) => ({
-      id: o._id,
-      shortId: `#${o._id.toString().slice(-8).toUpperCase()}`,
-      customer: o.customerId?.name || 'Unknown',
-      status: o.status,
-      amount: o.totalAmount,
-      updatedAt: o.updatedAt
-    }));
+    if (recentOrders.length === 0) {
+      return res.json(mockActivities);
+    }
+
+    const result = recentOrders.map((o) => {
+      const shortId = `#${o._id.toString().slice(-8).toUpperCase()}`;
+      const mapped = typeMap[o.status] || { type: 'created', iconColor: 'text-blue-600 dark:text-blue-400' };
+      const customerName = o.customerId?.name || 'Unknown';
+      return {
+        id: o._id,
+        type: mapped.type,
+        title: o.status === 'Delivered'
+          ? `Order ${shortId} delivered`
+          : `Order ${shortId} status: ${o.status}`,
+        description: `Customer: ${customerName}`,
+        timestamp: o.updatedAt.toISOString(),
+        iconColor: mapped.iconColor,
+      };
+    });
 
     res.json(result);
   } catch (error) {
