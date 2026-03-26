@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const BenefitsShowcase = () => {
@@ -58,12 +58,10 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('customer');
-  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const { login } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
 
   const validate = () => {
     const newErrors = {};
@@ -134,7 +132,10 @@ const Login = () => {
             <div>
               <div className="flex justify-between items-center mb-1">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
-                <button type="button" className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
+                <button
+                  type="button"
+                  onClick={() => toast('Password reset coming soon! Contact support for help.', { icon: '🔑' })}
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
                   Forgot password?
                 </button>
               </div>
@@ -169,8 +170,6 @@ const Login = () => {
               <input
                 id="rememberMe"
                 type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
                 className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
               <label htmlFor="rememberMe" className="text-sm text-gray-600 dark:text-gray-400">

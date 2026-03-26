@@ -46,9 +46,9 @@ const MOCK_ORDERS = [
 
 // ─── Helper: priority color classes ──────────────────────────────────────────
 const priorityConfig = {
-  high:   { bg: 'bg-red-100 dark:bg-red-900/30',    text: 'text-red-600 dark:text-red-400',    label: 'High' },
-  medium: { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-600 dark:text-yellow-400', label: 'Medium' },
-  low:    { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-600 dark:text-green-400', label: 'Low' },
+  high:   { bg: 'bg-red-100 dark:bg-red-900/30',    text: 'text-red-600 dark:text-red-400',    dot: 'bg-red-500 dark:bg-red-400',    label: 'High' },
+  medium: { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-600 dark:text-yellow-400', dot: 'bg-yellow-500 dark:bg-yellow-400', label: 'Medium' },
+  low:    { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-600 dark:text-green-400', dot: 'bg-green-500 dark:bg-green-400',  label: 'Low' },
 };
 
 const statusConfig = {
@@ -63,7 +63,7 @@ const PriorityBadge = ({ priority }) => {
   const cfg = priorityConfig[priority] || priorityConfig.low;
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${cfg.bg} ${cfg.text}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${cfg.text.replace('text-', 'bg-').replace('dark:text-', 'dark:bg-')}`} />
+      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
       {cfg.label}
     </span>
   );
@@ -437,7 +437,9 @@ const AgentDashboard = () => {
               Manage assigned shipments and update order statuses
             </p>
           </div>
-          <button className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm shadow transition-all">
+          <button
+            onClick={() => toast('New Shipment feature coming soon!', { icon: '🚚' })}
+            className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm shadow transition-all">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
