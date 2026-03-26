@@ -54,12 +54,12 @@ export const AuthProvider = ({ children }) => {
   const verifyLoginOtp = async (userId, otp, rememberMe = false) => {
     const res = await axios.post('/api/auth/verify-login-otp', { userId, otp });
     const { token, ...userData } = res.data;
-    if (rememberMe) {
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(userData));
-    } else {
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(userData));
+    // Always persist token; for non-remembered sessions the token expiry handles cleanup
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(userData));
+    if (!rememberMe) {
+      // Mark session as non-persistent so it can be cleared on browser close if needed
+      sessionStorage.setItem('sessionOnly', 'true');
     }
     setUser(userData);
     return userData;

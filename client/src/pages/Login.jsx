@@ -252,7 +252,7 @@ const Login = () => {
 
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-500 dark:text-gray-400">
-                    {countdown > 0 ? `Resend in ${countdown}s` : 'Didn\'t receive it?'}
+                    {countdown > 0 ? `Resend in ${countdown}s` : "Didn't receive it?"}
                   </span>
                   <button
                     type="button"
