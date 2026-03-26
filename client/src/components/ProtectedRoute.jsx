@@ -18,11 +18,11 @@ const ProtectedRoute = ({ children, adminOnly = false, allowedRoles = [] }) => {
   }
 
   if (adminOnly && user.role !== 'admin') {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return children;
