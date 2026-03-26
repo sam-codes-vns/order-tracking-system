@@ -69,6 +69,7 @@ const mongoose = require("mongoose");
 const authRoutes = require("./routes/auth");
 const orderRoutes = require("./routes/orders");
 const agentRoutes = require("./routes/agents");
+const analyticsRoutes = require("./routes/analytics");
 
 // Socket handler import
 const setupSocketHandlers = require("./socket/socketHandler");
@@ -98,6 +99,7 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/agents", agentRoutes);
+app.use("/api/analytics", analyticsRoutes);
 
 // ─── Health Check ────────────────────────────────────────────────────
 app.get("/api/health", (req, res) => {
