@@ -4,6 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { DarkModeProvider } from './context/DarkModeContext';
 import { OrderProvider } from './context/OrderContext';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminLogin from './pages/AdminLogin';
 import AgentDashboard from './pages/AgentDashboard';
 import CustomerDashboard from './pages/CustomerDashboard';
 import LandingPage from './pages/LandingPage';
@@ -18,6 +19,7 @@ function App() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/admin-login" element={<AdminLogin />} />
           <Route path="/register" element={<Register />} />
           <Route
             path="/dashboard"

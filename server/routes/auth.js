@@ -1,11 +1,29 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 const User = require('../models/User');
 const Agent = require('../models/Agent');
 const { protect } = require('../middleware/authMiddleware');
 const { sendEmailOtp, verifyOtp } = require('../services/otpService');
 
 const router = express.Router();
+
+// Rate limiters for sensitive auth endpoints
+const adminLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  message: { message: 'Too many login attempts, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const adminOtpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { message: 'Too many OTP attempts, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // ─── Register ────────────────────────────────────────────────────────
 router.post('/register', async (req, res) => {
@@ -120,6 +138,76 @@ router.post('/login', async (req, res) => {
 
   } catch (error) {
     res.status(500).json({ message: error.message || 'Server error' });
+  }
+});
+
+// ─── Admin Login (Step 1) - validates credentials then sends OTP ─────
+router.post('/admin/login', adminLoginLimiter, async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Please provide email and password' });
+    }
+
+    const user = await User.findOne({ email }).select('+password');
+    if (!user) return res.status(401).json({ message: 'Invalid credentials' });
+
+    if (user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied. Admin only.' });
+    }
+
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) return res.status(401).json({ message: 'Invalid credentials' });
+
+    // Send OTP for 2-step verification
+    await sendEmailOtp(user._id, user.email);
+
+    res.json({
+      message: 'OTP sent to your email for verification.',
+      userId: user._id,
+      requiresOtp: true
+    });
+
+  } catch (error) {
+    console.error('❌ Admin login error:', error.message);
+    res.status(500).json({ message: error.message || 'Server error' });
+  }
+});
+
+// ─── Admin Verify OTP (Step 2) - verifies OTP and returns JWT ────────
+router.post('/admin/verify-otp', adminOtpLimiter, async (req, res) => {
+  try {
+    const { userId, otp } = req.body;
+    if (!userId || !otp) return res.status(400).json({ message: 'userId and otp are required' });
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    if (user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied. Admin only.' });
+    }
+
+    await verifyOtp(userId, otp, 'email');
+
+    // Mark email verified if not already
+    if (!user.emailVerified) {
+      await User.findByIdAndUpdate(userId, { emailVerified: true });
+    }
+
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+
+    res.json({
+      message: 'Admin login successful ✅',
+      token,
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role
+    });
+
+  } catch (error) {
+    res.status(400).json({ message: error.message });
   }
 });
 
