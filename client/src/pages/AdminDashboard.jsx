@@ -6,6 +6,8 @@ import StatsCard from '../components/StatsCard';
 import WeeklyOrdersTrendChart from '../components/charts/WeeklyOrdersTrendChart';
 import OrderStatusDistributionChart from '../components/charts/OrderStatusDistributionChart';
 import RevenueTrendChart from '../components/charts/RevenueTrendChart';
+import TopPerformingAgents from '../components/TopPerformingAgents';
+import RecentActivity from '../components/RecentActivity';
 import { useDarkMode } from '../context/DarkModeContext';
 
 const STATUS_OPTIONS = ['Placed', 'Packed', 'Shipped', 'Out for Delivery', 'Delivered'];
@@ -263,81 +265,20 @@ const AdminDashboard = () => {
                   </div>
                 </div>
 
-                {/* Charts Row 2 + Top Agents + Activity */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                {/* Charts Row 2 */}
+                <div className="mb-6">
                   <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 transition-colors">
                     <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-4">
                       Revenue Trend (6 Months)
                     </h2>
                     <RevenueTrendChart data={revenueData} />
                   </div>
-
-                  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 transition-colors">
-                    <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-4">
-                      Top Performing Agents
-                    </h2>
-                    {topAgents.length === 0 ? (
-                      <p className="text-gray-400 dark:text-gray-500 text-sm">No agent data yet.</p>
-                    ) : (
-                      <ul className="space-y-3">
-                        {topAgents.map((agent) => (
-                          <li key={agent.id} className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <span className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">
-                                {agent.rank}
-                              </span>
-                              <div>
-                                <p className="text-sm font-medium text-gray-900 dark:text-white">{agent.name}</p>
-                                <p className="text-xs text-gray-400">{agent.phone}</p>
-                              </div>
-                            </div>
-                            <span className="text-sm font-semibold text-green-600 dark:text-green-400">
-                              {agent.deliveredCount} delivered
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
                 </div>
 
-                {/* Recent Activity */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 transition-colors">
-                  <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-4">Recent Activity</h2>
-                  {recentActivity.length === 0 ? (
-                    <p className="text-gray-400 dark:text-gray-500 text-sm">No recent activity.</p>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full text-sm">
-                        <thead>
-                          <tr className="text-left text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">
-                            <th className="pb-3 pr-4">Order</th>
-                            <th className="pb-3 pr-4">Customer</th>
-                            <th className="pb-3 pr-4">Status</th>
-                            <th className="pb-3 pr-4">Amount</th>
-                            <th className="pb-3">Updated</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
-                          {recentActivity.map((a) => (
-                            <tr key={a.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                              <td className="py-3 pr-4 font-mono text-gray-600 dark:text-gray-400">{a.shortId}</td>
-                              <td className="py-3 pr-4 text-gray-900 dark:text-white">{a.customer}</td>
-                              <td className="py-3 pr-4">
-                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColor[a.status] || 'bg-gray-100 text-gray-700'}`}>
-                                  {a.status}
-                                </span>
-                              </td>
-                              <td className="py-3 pr-4 text-gray-700 dark:text-gray-300">${a.amount?.toLocaleString()}</td>
-                              <td className="py-3 text-gray-500 dark:text-gray-400 text-xs">
-                                {new Date(a.updatedAt).toLocaleDateString()}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+                {/* Top Agents + Recent Activity */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                  <TopPerformingAgents agents={topAgents} />
+                  <RecentActivity activities={recentActivity} />
                 </div>
               </>
             )}
