@@ -77,10 +77,35 @@ const setupSocketHandlers = require("./socket/socketHandler");
 const app = express();
 const server = http.createServer(app);
 
+// ─── CORS Origins ────────────────────────────────────────────────────
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  process.env.CLIENT_URL,
+  // Support comma-separated list of additional allowed origins
+  ...(process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(",").map((o) => o.trim()) : []),
+].filter(Boolean);
+
+const corsOriginHandler = (origin, callback) => {
+  // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
+  if (!origin || allowedOrigins.includes(origin)) {
+    callback(null, true);
+  } else {
+    callback(new Error("Not allowed by CORS"));
+  }
+};
+
+const corsOptions = {
+  origin: corsOriginHandler,
+  credentials: true,
+  methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
 // ─── Socket.io Setup ────────────────────────────────────────────────
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    origin: corsOriginHandler,
     methods: ["GET", "POST"],
   },
 });
@@ -89,10 +114,7 @@ app.set("io", io);
 setupSocketHandlers(io);
 
 // ─── Middleware ──────────────────────────────────────────────────────
-app.use(cors({
-  origin: process.env.CLIENT_URL || "http://localhost:3000",
-  credentials: true,
-}));
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // ─── Routes ─────────────────────────────────────────────────────────
@@ -132,6 +154,6 @@ const PORT = process.env.PORT || 5000;
 connectDB().then(() => {
   server.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📡 Client URL: ${process.env.CLIENT_URL || "http://localhost:3000"}`);
+    console.log(`📡 Allowed origins: ${allowedOrigins.join(", ")}`);
   });
 });
