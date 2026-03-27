@@ -1,10 +1,16 @@
 {
   "buildCommand": "cd client && npm install && npm run build",
   "outputDirectory": "client/dist",
+  "devCommand": "cd client && npm run dev",
   "rewrites": [
     {
       "source": "/(.*)",
       "destination": "/index.html"
     }
-  ]
+  ],
+  "functions": {
+    "server/**/*.js": {
+      "runtime": "nodejs18.x"
+    }
+  }
 }
