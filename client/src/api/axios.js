@@ -2,6 +2,9 @@ import axios from 'axios';
 
 const baseURL = import.meta.env.VITE_SERVER_URL || 'http://localhost:5000';
 
+// ✅ ADD THIS DEBUG LINE
+console.log('🔍 DEBUG: VITE_SERVER_URL =', import.meta.env.VITE_SERVER_URL);
+console.log('🔍 DEBUG: baseURL =', baseURL);
 const axiosInstance = axios.create({
   baseURL,
   headers: {
