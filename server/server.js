@@ -81,10 +81,13 @@ const server = http.createServer(app);
 const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:5173",
+  "https://ship365-three.vercel.app",
   process.env.CLIENT_URL,
   // Support comma-separated list of additional allowed origins
   ...(process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(",").map((o) => o.trim()) : []),
 ].filter(Boolean);
+
+console.log("🌐 CORS allowed origins:", allowedOrigins);
 
 const corsOriginHandler = (origin, callback) => {
   // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
@@ -115,6 +118,8 @@ setupSocketHandlers(io);
 
 // ─── Middleware ──────────────────────────────────────────────────────
 app.use(cors(corsOptions));
+// Handle preflight OPTIONS requests for all routes
+app.options("*", cors(corsOptions));
 app.use(express.json());
 
 // ─── Routes ─────────────────────────────────────────────────────────
