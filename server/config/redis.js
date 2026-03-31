@@ -1,14 +1,14 @@
-const Redis = require('ioredis');
+const { Redis } = require('@upstash/redis');
+
+if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+  throw new Error(
+    'Missing Upstash Redis credentials. Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN environment variables.'
+  );
+}
 
 const redis = new Redis({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT, 10) || 6379,
-  username: process.env.REDIS_USERNAME || 'default',
-  password: process.env.REDIS_PASSWORD,
-  retryStrategy: (times) => Math.min(times * 50, 2000)
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
 });
-
-redis.on('connect', () => console.log('✅ Redis Connected'));
-redis.on('error', (err) => console.error('❌ Redis Error:', err.message));
 
 module.exports = redis;
