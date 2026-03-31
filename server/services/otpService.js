@@ -16,7 +16,7 @@ const transporter = nodemailer.createTransport({
 
 const sendEmailOtp = async (userId, email) => {
   const otp = generateOTP();
-  await redis.set(`otp:email:${userId}`, otp, 'EX', OTP_EXPIRY);
+  await redis.set(`otp:email:${userId}`, otp, { ex: OTP_EXPIRY });
 
   await transporter.sendMail({
     from: `"Your App" <${process.env.EMAIL_USER}>`,
