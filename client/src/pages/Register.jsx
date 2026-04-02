@@ -319,8 +319,9 @@ const Register = () => {
 
                 <form onSubmit={handleVerify} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Email OTP</label>
+                    <label htmlFor="emailOtp" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Email OTP</label>
                     <input
+                      id="emailOtp"
                       type="text"
                       maxLength={6}
                       value={emailOtp}
