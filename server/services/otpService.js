@@ -1,32 +1,30 @@
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
 const redis = require('../config/redis');
 
 const OTP_EXPIRY = 600;
-const EMAIL_TIMEOUT = 30000; // 30 second timeout
+const EMAIL_TIMEOUT = 15000; // 15 second timeout for SendGrid REST API
 const MAX_RETRIES = 3;
 const RETRY_BASE_DELAY = 1000; // 1 second base delay for exponential backoff
 
 const generateOTP = () => crypto.randomInt(100000, 999999).toString();
-
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  },
-  socketTimeout: 30000,
-  connectionTimeout: 30000
-});
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const sendEmailWithRetry = async (mailOptions, attempt = 1) => {
   try {
     await Promise.race([
-      transporter.sendMail(mailOptions),
+      sgMail.send({
+        to: mailOptions.to,
+        from: {
+          email: process.env.SENDGRID_FROM_EMAIL,
+          name: 'Order Tracking'
+        },
+        subject: mailOptions.subject,
+        html: mailOptions.html
+      }),
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Email send timeout - 30 seconds exceeded')), EMAIL_TIMEOUT)
+        setTimeout(() => reject(new Error('Email send timeout - 15 seconds exceeded')), EMAIL_TIMEOUT)
       )
     ]);
   } catch (err) {
@@ -43,9 +41,10 @@ const sendEmailWithRetry = async (mailOptions, attempt = 1) => {
 const sendEmailOtp = async (userId, email) => {
   try {
     // Validate environment variables
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      throw new Error('❌ EMAIL_USER or EMAIL_PASS not configured. Configure in Vercel environment variables.');
+    if (!process.env.SENDGRID_API_KEY || !process.env.SENDGRID_FROM_EMAIL) {
+      throw new Error('❌ SENDGRID_API_KEY or SENDGRID_FROM_EMAIL not configured. Configure in Vercel environment variables.');
     }
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
     const otp = generateOTP();
     
@@ -63,15 +62,14 @@ const sendEmailOtp = async (userId, email) => {
 
     // Send email with retry logic
     await sendEmailWithRetry({
-      from: `"Order Tracking" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: 'Email Verification OTP',
       html: `
-        <div style="font-family:sans-serif;max-width:400px;margin:auto">
-          <h2>Verify your email</h2>
-          <p>Your OTP code is:</p>
-          <h1 style="letter-spacing:8px;color:#4F46E5">${otp}</h1>
-          <p>Valid for 10 minutes. Do not share this with anyone.</p>
+        <div style="font-family:sans-serif;max-width:400px;margin:auto;padding:32px;border:1px solid #e5e7eb;border-radius:8px">
+          <h2 style="color:#111827;margin-bottom:8px">Verify your email</h2>
+          <p style="color:#6b7280">Your one-time verification code is:</p>
+          <h1 style="letter-spacing:8px;color:#4F46E5;font-size:36px;margin:16px 0">${otp}</h1>
+          <p style="color:#6b7280;font-size:14px">Valid for 10 minutes. Do not share this code with anyone.</p>
         </div>
       `
     });
