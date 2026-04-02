@@ -3,7 +3,7 @@ const nodemailer = require('nodemailer');
 const redis = require('../config/redis');
 
 const OTP_EXPIRY = 600;
-const EMAIL_TIMEOUT = 30000; // 30 second timeout
+const EMAIL_TIMEOUT = 60000; // 60 second timeout
 const MAX_RETRIES = 3;
 const RETRY_BASE_DELAY = 1000; // 1 second base delay for exponential backoff
 
@@ -15,19 +15,23 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
   },
-  socketTimeout: 30000,
-  connectionTimeout: 30000
+  socketTimeout: 60000,
+  connectionTimeout: 60000
 });
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const sendEmailWithRetry = async (mailOptions, attempt = 1) => {
   try {
+    let timeoutId;
     await Promise.race([
-      transporter.sendMail(mailOptions),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Email send timeout - 30 seconds exceeded')), EMAIL_TIMEOUT)
-      )
+      transporter.sendMail(mailOptions).finally(() => clearTimeout(timeoutId)),
+      new Promise((_, reject) => {
+        timeoutId = setTimeout(
+          () => reject(new Error(`Email send timeout - ${EMAIL_TIMEOUT / 1000} seconds exceeded`)),
+          EMAIL_TIMEOUT
+        );
+      })
     ]);
   } catch (err) {
     if (attempt < MAX_RETRIES) {
