@@ -246,13 +246,15 @@ const AdminLogin = () => {
           {step === 2 && (
             <form onSubmit={handleOtpSubmit} className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 text-center">
+                <label id="otp-label" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 text-center">
                   Enter verification code
                 </label>
                 <div className="flex justify-center gap-2" onPaste={handleOtpPaste}>
                   {otp.map((digit, index) => (
                     <input
                       key={index}
+                      id={`otp-${index}`}
+                      aria-labelledby="otp-label"
                       ref={(el) => (otpRefs.current[index] = el)}
                       type="text"
                       inputMode="numeric"
