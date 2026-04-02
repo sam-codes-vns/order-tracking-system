@@ -20,10 +20,26 @@ const userSchema = new mongoose.Schema({
     minlength: 6,
     select: false
   },
+  phone: {
+    type: String,
+    default: ''
+  },
   role: {
     type: String,
     enum: ['customer', 'admin', 'agent'],
     default: 'customer'
+  },
+  emailVerified: {
+    type: Boolean,
+    default: false
+  },
+  emailOtp: {
+    type: String,
+    select: false
+  },
+  emailOtpExpiry: {
+    type: Date,
+    select: false
   },
   createdAt: {
     type: Date,
