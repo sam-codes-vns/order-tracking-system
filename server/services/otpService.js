@@ -1,6 +1,8 @@
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const mongoose = require('mongoose');
 const redis = require('../config/redis');
+const User = require('../models/User');
 
 const OTP_EXPIRY = 600;
 const EMAIL_TIMEOUT = 30000; // 30 second timeout
@@ -47,18 +49,34 @@ const sendEmailOtp = async (userId, email) => {
       throw new Error('❌ EMAIL_USER or EMAIL_PASS not configured. Configure in Vercel environment variables.');
     }
 
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      throw new Error('Invalid userId');
+    }
+
     const otp = generateOTP();
-    
-    // Store OTP in Redis with timeout
+    const expiry = new Date(Date.now() + OTP_EXPIRY * 1000);
+
+    // Try to store OTP in Redis; fall back to database if Redis is unavailable
+    let redisStored = false;
     try {
       await Promise.race([
         redis.set(`otp:email:${userId}`, otp, { ex: OTP_EXPIRY }),
-        new Promise((_, reject) => 
+        new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Redis timeout')), 5000)
         )
       ]);
+      redisStored = true;
     } catch (redisErr) {
-      console.error('⚠️ Redis error (continuing with email):', redisErr.message);
+      console.error('⚠️ Redis error, falling back to database for OTP storage:', redisErr.message);
+    }
+
+    if (!redisStored) {
+      try {
+        await User.findByIdAndUpdate(userId, { emailOtp: otp, emailOtpExpiry: expiry });
+      } catch (dbErr) {
+        console.error('❌ Database OTP storage failed:', dbErr.message);
+        throw new Error('Failed to store OTP. Please try again later.');
+      }
     }
 
     // Send email with retry logic
@@ -87,18 +105,53 @@ const sendEmailOtp = async (userId, email) => {
 
 const verifyOtp = async (userId, otp, type) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      throw new Error('Invalid userId');
+    }
+
     const key = `otp:${type}:${userId}`;
-    const stored = await Promise.race([
-      redis.get(key),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Redis timeout')), 5000)
-      )
-    ]);
+    let stored = null;
+    let fromDatabase = false;
+
+    // Try Redis first
+    try {
+      stored = await Promise.race([
+        redis.get(key),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Redis timeout')), 5000)
+        )
+      ]);
+    } catch (redisErr) {
+      console.error('⚠️ Redis error during verification, checking database fallback:', redisErr.message);
+    }
+
+    // If not found in Redis, check the database fallback (email OTP only)
+    if (!stored && type === 'email') {
+      try {
+        const user = await User.findById(userId).select('+emailOtp +emailOtpExpiry');
+        if (user && user.emailOtp) {
+          if (user.emailOtpExpiry && user.emailOtpExpiry < new Date()) {
+            await User.findByIdAndUpdate(userId, { emailOtp: null, emailOtpExpiry: null });
+            throw new Error('OTP expired or not found');
+          }
+          stored = user.emailOtp;
+          fromDatabase = true;
+        }
+      } catch (dbErr) {
+        if (dbErr.message === 'OTP expired or not found') throw dbErr;
+        console.error('⚠️ Database OTP lookup failed:', dbErr.message);
+      }
+    }
 
     if (!stored) throw new Error('OTP expired or not found');
-    if (stored.toString() !== otp.toString()) throw new Error('Invalid OTP');
+    if (stored.toString().trim() !== otp.toString().trim()) throw new Error('Invalid OTP');
 
-    await redis.del(key);
+    // Delete OTP after successful verification
+    if (fromDatabase) {
+      await User.findByIdAndUpdate(userId, { emailOtp: null, emailOtpExpiry: null });
+    } else {
+      await redis.del(key);
+    }
     return true;
   } catch (error) {
     console.error('❌ verifyOtp error:', error.message);
