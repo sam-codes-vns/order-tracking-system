@@ -3,7 +3,9 @@ const nodemailer = require('nodemailer');
 const redis = require('../config/redis');
 
 const OTP_EXPIRY = 600;
-const EMAIL_TIMEOUT = 15000; // 15 second timeout
+const EMAIL_TIMEOUT = 30000; // 30 second timeout
+const MAX_RETRIES = 3;
+const RETRY_BASE_DELAY = 1000; // 1 second base delay for exponential backoff
 
 const generateOTP = () => crypto.randomInt(100000, 999999).toString();
 
@@ -13,9 +15,30 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
   },
-  socketTimeout: 10000,
-  connectionTimeout: 10000
+  socketTimeout: 30000,
+  connectionTimeout: 30000
 });
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const sendEmailWithRetry = async (mailOptions, attempt = 1) => {
+  try {
+    await Promise.race([
+      transporter.sendMail(mailOptions),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Email send timeout - 30 seconds exceeded')), EMAIL_TIMEOUT)
+      )
+    ]);
+  } catch (err) {
+    if (attempt < MAX_RETRIES) {
+      const delay = RETRY_BASE_DELAY * Math.pow(2, attempt - 1);
+      console.warn(`⚠️ Email attempt ${attempt} failed (${err.message}). Retrying in ${delay}ms...`);
+      await sleep(delay);
+      return sendEmailWithRetry(mailOptions, attempt + 1);
+    }
+    throw err;
+  }
+};
 
 const sendEmailOtp = async (userId, email) => {
   try {
@@ -38,25 +61,20 @@ const sendEmailOtp = async (userId, email) => {
       console.error('⚠️ Redis error (continuing with email):', redisErr.message);
     }
 
-    // Send email with timeout
-    await Promise.race([
-      transporter.sendMail({
-        from: `"Order Tracking" <${process.env.EMAIL_USER}>`,
-        to: email,
-        subject: 'Email Verification OTP',
-        html: `
-          <div style="font-family:sans-serif;max-width:400px;margin:auto">
-            <h2>Verify your email</h2>
-            <p>Your OTP code is:</p>
-            <h1 style="letter-spacing:8px;color:#4F46E5">${otp}</h1>
-            <p>Valid for 10 minutes. Do not share this with anyone.</p>
-          </div>
-        `
-      }),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Email send timeout - 15 seconds exceeded')), EMAIL_TIMEOUT)
-      )
-    ]);
+    // Send email with retry logic
+    await sendEmailWithRetry({
+      from: `"Order Tracking" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Email Verification OTP',
+      html: `
+        <div style="font-family:sans-serif;max-width:400px;margin:auto">
+          <h2>Verify your email</h2>
+          <p>Your OTP code is:</p>
+          <h1 style="letter-spacing:8px;color:#4F46E5">${otp}</h1>
+          <p>Valid for 10 minutes. Do not share this with anyone.</p>
+        </div>
+      `
+    });
 
     console.log(`✅ Email OTP sent to ${email}`);
     return true;
@@ -78,7 +96,7 @@ const verifyOtp = async (userId, otp, type) => {
     ]);
 
     if (!stored) throw new Error('OTP expired or not found');
-    if (stored !== otp) throw new Error('Invalid OTP');
+    if (stored.toString() !== otp.toString()) throw new Error('Invalid OTP');
 
     await redis.del(key);
     return true;
